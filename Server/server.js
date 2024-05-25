@@ -1,6 +1,8 @@
 const dotenv = require('dotenv');
 const express = require('express');
+const multer = require('multer');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const items = require('./models/item.js');
 const {S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand} = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
@@ -8,6 +10,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 dotenv.config();
 
 const app = express();
+const upload = multer({});
 const PORT = process.env.PORT || '3000';
 
 const bucketName = process.env.BUCKET_NAME;                                 
@@ -26,9 +29,14 @@ const s3 = new S3Client({
 mongoose.connect(process.env.CONNECTION_URL);
 let conn = mongoose.connection;
 
+
 app.set('views', __dirname + '/views');                           
 app.set('view engine', 'jsx');
 app.engine('jsx', require('express-react-views').createEngine());
+
+app.use(express.static(__dirname + '/public'));
+app.use(express.static(__dirname + '/dist'));
+app.use(express.json());
 
 app.get('/items', async function(req, res){
     /**
@@ -40,7 +48,7 @@ app.get('/items', async function(req, res){
      * 
      * Response:
      *  returns all items in the database if retrieved successfully and
-     *  an error otherwise
+     *  an error if there was an issue
      */
 
     try{
@@ -56,6 +64,19 @@ app.get('/items', async function(req, res){
 });
 
 app.get('/items/:id', async function(req, res){
+    /**
+     * Handle GET requests to /items/:id
+     * 
+     * Status Code:
+     *  - 200 if the item was retrieved successfully
+     *  - 404 if teh item couldn't be found
+     *  - 500 if there was an error
+     * 
+     * Response:
+     *  returns a pre-rendered product page if html was requested, an S3
+     *  image link if json was requested and an error if there was an issue
+     */
+
     try{
         if(bucketName == undefined){
             throw "S3 bucket wasn't provided in .env file"
@@ -65,13 +86,13 @@ app.get('/items/:id', async function(req, res){
             Bucket: bucketName,
             Key: req.params.id
         };
-
         const command = new GetObjectCommand(params);
         const url = await getSignedUrl(s3, command, {expiresIn: 3600});
         
         res.format({
             'application/json' : () => {
                 res.status(200).json(url);
+                return
             },
     
             'text/html' : async () => {
@@ -90,10 +111,10 @@ app.get('/items/:id', async function(req, res){
                             stock: result.stock,
                             price: result.price,
                             imageURL: url
-                        }).catch(() => {throw "error from render"});
+                        });
                     }
                 }catch(err){
-                    console.log(err);
+                    console.log(err)
                     if(err == "ItemID could not be found"){
                         res.status(404).setHeader('content-type','application/json').json({error: err});
                     }else{
@@ -105,6 +126,52 @@ app.get('/items/:id', async function(req, res){
     }catch(err){
         console.log(err);
         res.status(500).json({error: err});
+    }
+});
+
+app.post('/items', upload.single('file'), async function(req, res){
+    try{
+        let newItem = {
+            itemName: req.body.itemName,
+            description: req.body.description,
+            stock: req.body.stock,
+            price: req.body.price,
+            category: req.body.category, 
+            id: crypto.randomBytes(32).toString('hex')
+        }
+
+        for(let key of Object.keys(newItem)){
+            if(newItem[key] == ""|| newItem[key] == undefined){
+                throw "Fields were missing"
+            }
+        }
+        
+        await items.create(newItem).catch((err) => {
+            throw err; 
+        });
+        
+        const params = {
+            Bucket: bucketName,
+            Key: newItem.id,
+            Body: req.file.buffer,
+            ContentType: req.file.mimetype
+        }
+        const command = new PutObjectCommand(params);
+        
+        await s3.send(new PutObjectCommand(params));
+        
+        let results = await items.find({}).catch((err) => {
+            throw err;
+        });
+
+        res.status(200).json(results);
+    }catch(err){
+        console.log(err);
+        if(err == "Fields were missing"){
+            res.status(400).json({error: err});
+        }else{
+            res.status(500).json({error: err});
+        }
     }
 });
 

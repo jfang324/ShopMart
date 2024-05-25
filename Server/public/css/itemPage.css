@@ -1,0 +1,31 @@
+div.logo{
+    font-size: 60px;
+}
+
+div.itemName{
+    font-size: 30px;
+    font-weight: 450;
+}
+
+div.description{
+    font-size: 20px;
+}
+
+div.price{
+    font-size: 18px;
+}
+
+div.stock{
+    font-size: 18px;
+}
+
+a.links{
+    font-size: 20px;
+    text-decoration:none;
+    color: gray;
+}
+
+a.selected{
+    font-weight: 600;
+    color: black;
+}
