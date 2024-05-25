@@ -16,23 +16,28 @@ const mockItems = [{
     stock: 1,
     price: 11,
     category: "items",
-    id: 1
+    id: '1'
 },
 {
-    itemName: "item1",
+    itemName: "item2",
     description: "description1",
     stock: 1,
     price: 11,
     category: "items",
-    id: 1
+    id: '2'
 },{
-    itemName: "item1",
+    itemName: "item3",
     description: "description1",
     stock: 1,
     price: 11,
     category: "items",
-    id: 1
+    id: '3'
 }];
+
+const mockCart = {
+    '1': [1, 11, "item1"],
+    '2': [1, 11, "item2"]
+};
 
 const s3 = new S3Client({
     credentials: {
@@ -131,8 +136,9 @@ describe("POST /items", () => {
         field("category", "mockCategory").
         attach('file', path.resolve(__dirname, 'dummy.jpg'));
 
-        console.log(response.statusCode, response.headers, response.body);
         expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(response.body).not.toBeUndefined();
     });
 
     test("should respond with 500 status code and err (error creating item)", async () => {
@@ -146,6 +152,8 @@ describe("POST /items", () => {
         attach('file', path.resolve(__dirname, 'dummy.jpg'));
 
         expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
     });
 
     test("should respond with 500 status code and err (error retrieving items)", async () => {
@@ -159,6 +167,8 @@ describe("POST /items", () => {
         attach('file', path.resolve(__dirname, 'dummy.jpg'));
 
         expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
     });
     
     test("should respond with 400 status code and error (a field is undefined)", async () => {
@@ -186,6 +196,156 @@ describe("POST /items", () => {
         attach('file', path.resolve(__dirname, 'dummy.jpg'));
 
         expect(response.statusCode).toBe(400);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+});
+
+describe("DELETE /items/:id", () => {
+    beforeAll(() => {
+        items.deleteOne.
+        mockReturnValueOnce(Promise.resolve({})).
+        mockReturnValueOnce(new Error("Database Error")).
+        mockReturnValueOnce(Promise.resolve({}));
+
+        DeleteObjectCommand.mockReturnValue({});
+        s3.send.mockReturnValue(Promise.resolve({}));
+
+        items.find.
+        mockReturnValueOnce(Promise.resolve(mockItems)).
+        mockReturnValueOnce(new Error("Database Error"));
+    });
+
+    test("should respond with 200 status code and items (everything went right)", async () => {
+        const response = await request(app).delete('/items/:id');
+
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(response.body).not.toBeUndefined();
+    });
+
+    test("should respond with 500 status code and error (error deleting item)", async () => {
+        const response = await request(app).delete('/items/:id');
+
+        expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+
+    test("should respond with 500 status code and error (error retrieving items)", async () => {
+        const response = await request(app).delete('/items/:id');
+
+        expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+});
+
+describe("PUT /items", () => {
+    beforeAll(() => {
+        items.find.
+        mockReturnValueOnce(Promise.resolve(mockItems)).
+        mockReturnValueOnce(Promise.resolve(mockItems)).
+        mockReturnValueOnce(new Error("Database Error")).
+        mockReturnValue(Promise.resolve(mockItems));
+
+        items.updateOne.
+        mockReturnValueOnce(Promise.resolve({})).
+        mockReturnValueOnce(Promise.resolve({})).
+        mockReturnValueOnce(new Error("Database Error"));
+    });
+
+    test("should respond with status code 200 and updated items (everything went right)", async () => {
+        const response = await request(app).put('/items').send(mockCart);
+
+        console.log(response.body);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(response.body).not.toBeUndefined();
+    });
+
+    test("should respond with status code 500 and error (error retrieving existing items)", async () => {
+        const response = await request(app).put('/items');
+
+        expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+
+    test("should respond with status code 400 and error (count in cart is higher than stock)", async () => {
+        const response = await request(app).put('/items').send({
+            '1': [2, 11, "item1"]
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    })
+
+    test("should respond with status code 500 and error (error updating items)", async () => {
+        const response = await request(app).put('/items').send({
+            '1': [1, 11, "item1"]
+        });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+});
+
+describe("PUT /items/:id", () => {
+    beforeAll(() => {
+        items.findOneAndUpdate.
+        mockReturnValueOnce(Promise.resolve({})).
+        mockReturnValueOnce(new Error("Database Error")).
+        mockReturnValue(Promise.resolve({}));
+
+        items.find.
+        mockReturnValueOnce(Promise.resolve(mockItems)).
+        mockReturnValueOnce(new Error("Database Error"))
+    });
+
+    test("should respond with status code 200 and items (everything went right)", async () => {
+        const response = await request(app).put('/items/:id').send({
+            'itemName': 'newName',
+            'id': '1'
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(response.body).not.toBeUndefined();
+    });
+
+    test("should respond with status code 400 and error (fields were invalid)", async () => {
+        const response = await request(app).put('/items/:id').send({
+            'itemName': '',
+            'id': '1'
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+
+    test("should respond with status code 500 and error (error updating item)", async () => {
+        const response = await request(app).put('/items/:id').send({
+            'itemName': 'newItem1',
+            'id': '1'
+        });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Object.keys(response.body)).toContain('error');
+    });
+
+    test("should respond with status code 500 and error (error retrieving items)", async () => {
+        const response = await request(app).put('/items/:id').send({
+            'itemName': 'newItem1',
+            'id': '1'
+        });
+
+        expect(response.statusCode).toBe(500);
         expect(response.headers['content-type']).toContain('application/json');
         expect(Object.keys(response.body)).toContain('error');
     });

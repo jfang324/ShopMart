@@ -29,7 +29,6 @@ const s3 = new S3Client({
 mongoose.connect(process.env.CONNECTION_URL);
 let conn = mongoose.connection;
 
-
 app.set('views', __dirname + '/views');                           
 app.set('view engine', 'jsx');
 app.engine('jsx', require('express-react-views').createEngine());
@@ -69,7 +68,7 @@ app.get('/items/:id', async function(req, res){
      * 
      * Status Code:
      *  - 200 if the item was retrieved successfully
-     *  - 404 if teh item couldn't be found
+     *  - 404 if the item couldn't be found
      *  - 500 if there was an error
      * 
      * Response:
@@ -130,6 +129,19 @@ app.get('/items/:id', async function(req, res){
 });
 
 app.post('/items', upload.single('file'), async function(req, res){
+    /**
+     * Handles POST requests to /items
+     * 
+     * Status Code:
+     *  - 200 if item was created successfully
+     *  - 400 if the input was invalid
+     *  - 500 if there was an error
+     * 
+     * Response:
+     *  returns all items in the database after adding the item to the database
+     *  and S3
+     */
+
     try{
         let newItem = {
             itemName: req.body.itemName,
@@ -156,7 +168,6 @@ app.post('/items', upload.single('file'), async function(req, res){
             Body: req.file.buffer,
             ContentType: req.file.mimetype
         }
-        const command = new PutObjectCommand(params);
         
         await s3.send(new PutObjectCommand(params));
         
@@ -168,6 +179,168 @@ app.post('/items', upload.single('file'), async function(req, res){
     }catch(err){
         console.log(err);
         if(err == "Fields were missing"){
+            res.status(400).json({error: err});
+        }else{
+            res.status(500).json({error: err});
+        }
+    }
+});
+
+app.delete('/items/:id', async (req, res) => {
+    /**
+     * Handle DELETE requests to /items/:id
+     * 
+     * Status Code:
+     *  - 200 if the items was deleted successfully
+     *  - 500 if there was an error
+     * 
+     * Response:
+     *  return all items in the database after deleting the item
+     *  from the database and S3
+     */
+    
+    try{
+        await items.deleteOne({id: req.params.id}).catch((err) => {
+            throw err;
+        });
+
+        const params = {
+            Bucket: bucketName,
+            Key: req.params.id
+        }
+
+        await s3.send(new DeleteObjectCommand(params));
+
+        let results = await items.find({}).catch((err) => {
+            throw err;
+        });
+
+        res.status(200).json(results);
+    }catch(err){
+        console.log(err);
+        res.status(500).json({error: err});
+    }
+});
+
+app.put('/items', async function(req, res){
+    /**
+     * Handles PUT requests to /items
+     * 
+     * Status Code:
+     *  - 200 if the items were updated successfully 
+     *  - 400 if the input was invalid
+     *  - 500 if there was an error
+     * 
+     * Response:
+     *  returns all items in the database after subtracting the appropriate amount
+     *  of stock from all items in the cart
+     */
+
+    try{
+        let existingItems = await items.find({}).catch((err) => {
+            throw err;
+        });
+        let cart = req.body;
+        let keys = Object.keys(cart);
+
+        for(let item of existingItems){
+            if(keys.includes(item.id)){
+                if(item.stock < cart[item.id][0]){
+                    throw "Not enough stock"
+                }else{
+                    cart[item.id].push(item.stock - cart[item.id][0]);
+                }
+            }
+        }
+
+        for(let key of keys){
+            await items.updateOne({
+                id: key
+            },{
+                stock: cart[key][3]
+            }).catch((err) => {
+                throw err;
+            });
+        }
+
+        let results = await items.find({}).catch((err) => {
+            throw err;
+        });
+
+        res.status(200).json(results);
+    }catch(err){
+        console.log(err);
+        if(err == "Not enough stock"){
+            res.status(400).json({error: err});
+        }else{
+            res.status(500).json({error: err});
+        }
+    }
+});
+
+app.put('/items/:id', upload.single('file'), async (req, res) => {
+    /**
+     * Handles PUT requests to /items/:id
+     * 
+     * Status Code:
+     *  - 200 if the item was updated successfully
+     *  - 400 if the input was invalid
+     *  - 500 if there was an error
+     * 
+     * Response:
+     *  returns all items in the database after updating the request on
+     *  in the database and potentially S3
+     */
+    
+    try{
+        for(let key of Object.keys(req.body)){
+            if(req.body[key] == ""){
+                throw "Invalid fields"
+            }
+        }
+
+        let updatedItem = {
+            itemName: req.body.itemName,
+            description: req.body.description,
+            stock: req.body.stock,
+            price: req.body.price,
+            category: req.body.category,
+            id: req.params.id
+        };
+
+        await items.findOneAndUpdate({
+            id: updatedItem.id
+        },{
+            itemName: updatedItem.itemName,
+            description: updatedItem.description,
+            stock: updatedItem.stock,
+            price: updatedItem.price,
+            category: updatedItem.category
+        },{
+            runValidators: true
+        }).catch((err) => {
+            throw err;
+        });
+
+        if(req.file != undefined){
+            const params = {
+                Bucket: bucketName,
+                Key: updatedItem.id,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype
+            }
+        
+            await s3.send(new PutObjectCommand(params));
+        }
+
+        let results = await items.find({}).catch((err) => {
+            throw err;
+        });
+
+        res.status(200).json(results);
+    }catch(err){
+        console.log(err);
+        if(err == "Invalid fields"){
             res.status(400).json({error: err});
         }else{
             res.status(500).json({error: err});

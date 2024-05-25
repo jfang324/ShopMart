@@ -1,0 +1,54 @@
+input[type = 'file']{
+    color: rgba(0, 0, 0, 0)
+}
+
+textarea{
+    height: 100%;
+}
+
+option{
+    font-size: 20px;
+}
+
+div.logo{
+    font-size: 60px;
+}
+
+div.miniLogo{
+    font-size: 30px;
+}
+
+div.miniItemName{
+    font-size: 20px;
+    font-weight: 450;
+}
+
+div.miniDescription{
+    font-size: 12px;
+}
+
+div.miniPrice{
+    font-size: 10px;
+}
+
+div.miniStock{
+    font-size: 10px;
+}
+
+a.links{
+    font-size: 20px;
+    text-decoration: none;
+    color: gray;
+}
+
+a.miniLinks{
+    font-size: 10px;
+    text-decoration:none;
+    color: gray;
+}
+
+a.selected{
+    font-weight: 600;
+    color: black;
+}
+
