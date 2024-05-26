@@ -54,6 +54,7 @@ In order to run a local copy of this web app you will need a MongoDB atlas datab
 - Node
 - S3
 - Vite
+- Jest
 
 
 
