@@ -258,8 +258,6 @@ describe("PUT /items", () => {
     test("should respond with status code 200 and updated items (everything went right)", async () => {
         const response = await request(app).put('/items').send(mockCart);
 
-        console.log(response.body);
-
         expect(response.statusCode).toBe(200);
         expect(response.headers['content-type']).toContain('application/json');
         expect(response.body).not.toBeUndefined();

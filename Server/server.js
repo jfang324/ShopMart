@@ -117,7 +117,7 @@ app.get('/items/:id', async function(req, res){
                     if(err == "ItemID could not be found"){
                         res.status(404).setHeader('content-type','application/json').json({error: err});
                     }else{
-                        res.status(500).setHeader('content-type','application/json').json({error: err, extra: "!"});
+                        res.status(500).setHeader('content-type','application/json').json({error: err});
                     }
                 }
             }
