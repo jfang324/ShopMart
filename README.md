@@ -37,13 +37,14 @@ In order to run a local copy of this web app you will need a MongoDB atlas datab
     ```
 
 ## Gallery & Demonstrations
-![Screenshot 2024-05-19 175546](https://github.com/Jeffery-Fang/ShopMart/assets/126544955/283a3e42-8d74-44db-b849-f68e9fe0f4bc)
+
+![Screenshot 2024-05-19 175546](https://github.com/Jeffery-Fang/ShopMart/assets/126544955/04622297-44a2-41de-ad18-812f9cbadf8c)
 *User Page*
 
-![Screenshot 2024-05-19 175629](https://github.com/Jeffery-Fang/ShopMart/assets/126544955/f118eabb-61d5-4cc6-9f90-2e0324d80cd5)
+![Screenshot 2024-05-19 175629](https://github.com/Jeffery-Fang/ShopMart/assets/126544955/341738e4-cea6-4231-81b5-f7097d588db6)
 *Admin Page*
 
-![Screenshot 2024-05-19 175646](https://github.com/Jeffery-Fang/ShopMart/assets/126544955/7dcac554-4712-4c50-ba63-32a45bb01207)
+![Screenshot 2024-05-19 175646](https://github.com/Jeffery-Fang/ShopMart/assets/126544955/98985900-396e-46c8-832d-a1e57ea159af)
 *Product Page*
 
 ## Tools & Technologies
